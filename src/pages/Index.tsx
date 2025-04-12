@@ -1,14 +1,46 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Users, TrendingUp } from "lucide-react";
+import { Plus, Search, Users, TrendingUp, Edit, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { sampleAgentTemplates } from "@/data/nodeData";
+import { getAgentList } from "@/lib/agentService";
+import { AgentData } from "@/types/builder";
+import { formatDate } from "@/lib/utils";
 
 const Dashboard = () => {
+  const [recentAgents, setRecentAgents] = useState<AgentData[]>([]);
+  const [agentCount, setAgentCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadAgents = async () => {
+      try {
+        const { agents, error } = await getAgentList();
+        
+        if (error) {
+          console.error("Error loading agents:", error);
+          return;
+        }
+        
+        if (agents) {
+          setAgentCount(agents.length);
+          // Get the 3 most recent agents
+          setRecentAgents(agents.slice(0, 3));
+        }
+      } catch (error) {
+        console.error("Error loading agents:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadAgents();
+  }, []);
+
   return (
     <Layout>
       <div className="flex items-center justify-between mb-6">
@@ -32,7 +64,7 @@ const Dashboard = () => {
             <CardTitle className="text-sm font-medium">My Agents</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            <div className="text-2xl font-bold">{agentCount}</div>
           </CardContent>
           <CardFooter className="pt-0">
             <Link to="/agents" className="text-xs text-blue-500 hover:underline">
@@ -122,16 +154,47 @@ const Dashboard = () => {
         </TabsContent>
         
         <TabsContent value="recent">
-          <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/40">
-            <div className="text-center">
-              <p className="text-muted-foreground mb-2">Your recently used agents will appear here</p>
-              <Button asChild>
-                <Link to="/agents">
-                  View My Agents
-                </Link>
-              </Button>
+          {loading ? (
+            <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/40">
+              <p className="text-muted-foreground">Loading recent agents...</p>
             </div>
-          </div>
+          ) : recentAgents.length === 0 ? (
+            <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/40">
+              <div className="text-center">
+                <p className="text-muted-foreground mb-2">You haven't created any agents yet</p>
+                <Button asChild>
+                  <Link to="/builder/new">
+                    Create Your First Agent
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {recentAgents.map((agent) => (
+                <Card key={agent.id}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{agent.name}</CardTitle>
+                    <CardDescription>{agent.description || "No description"}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4 mr-1" />
+                      <span>Last updated: {formatDate(agent.updatedAt)}</span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-between">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to={`/builder/${agent.id}`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </Layout>

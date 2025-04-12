@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -6,8 +5,10 @@ import Layout from "@/components/Layout";
 import BuilderToolbar from "@/components/builder/BuilderToolbar";
 import BuilderCanvas from "@/components/builder/BuilderCanvas";
 import NodePalette from "@/components/builder/NodePalette";
+import TestPanel from "@/components/builder/TestPanel";
 import { AgentData, NodeData, ConnectionData, NodeType } from "@/types/builder";
 import { generateId } from "@/lib/utils";
+import { saveAgent, getAgent } from "@/lib/agentService";
 
 const Builder = () => {
   const { id } = useParams();
@@ -15,8 +16,11 @@ const Builder = () => {
   const isNew = id === "new";
   
   const [agentName, setAgentName] = useState("Untitled Agent");
+  const [agentDescription, setAgentDescription] = useState("");
   const [nodes, setNodes] = useState<NodeData[]>([]);
   const [connections, setConnections] = useState<ConnectionData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [testPanelOpen, setTestPanelOpen] = useState(false);
   
   // For undo/redo functionality
   const [history, setHistory] = useState<{nodes: NodeData[], connections: ConnectionData[]}[]>([]);
@@ -28,73 +32,45 @@ const Builder = () => {
       setNodes([]);
       setConnections([]);
       setAgentName("Untitled Agent");
+      setAgentDescription("");
       
       // Reset history
       setHistory([{ nodes: [], connections: [] }]);
       setHistoryIndex(0);
     } else {
-      // TODO: Load an existing agent by ID
-      // This would typically fetch from an API or local storage
-      
-      // For now, we'll just have a sample agent
-      const sampleAgent: AgentData = {
-        id: "sample-agent",
-        name: "Sample Study Planner",
-        description: "A sample study planner agent",
-        nodes: [
-          {
-            id: "input-1",
-            type: "flow-input",
-            name: "User Input",
-            description: "Entry point for user input",
-            position: { x: 100, y: 100 },
-            data: {}
-          },
-          {
-            id: "llm-1",
-            type: "llm-prompt",
-            name: "Study Plan Prompt",
-            description: "Generate a study plan",
-            position: { x: 300, y: 100 },
-            data: {
-              prompt: "Create a study plan for {{subject}} with {{hours}} hours available."
-            }
-          },
-          {
-            id: "output-1",
-            type: "flow-output",
-            name: "Plan Output",
-            description: "Final output to user",
-            position: { x: 500, y: 100 },
-            data: {}
+      // Load an existing agent by ID
+      const loadAgent = async () => {
+        setLoading(true);
+        try {
+          const { agent, error } = await getAgent(id!);
+          
+          if (error) {
+            toast.error(`Error loading agent: ${error}`);
+            return;
           }
-        ],
-        connections: [
-          {
-            id: "conn-1",
-            sourceId: "input-1",
-            targetId: "llm-1"
-          },
-          {
-            id: "conn-2",
-            sourceId: "llm-1",
-            targetId: "output-1"
+          
+          if (agent) {
+            setNodes(agent.nodes);
+            setConnections(agent.connections);
+            setAgentName(agent.name);
+            setAgentDescription(agent.description || "");
+            
+            // Initialize history with the loaded agent
+            setHistory([{ 
+              nodes: agent.nodes, 
+              connections: agent.connections 
+            }]);
+            setHistoryIndex(0);
           }
-        ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        } catch (error) {
+          console.error("Error loading agent:", error);
+          toast.error("Failed to load agent");
+        } finally {
+          setLoading(false);
+        }
       };
       
-      setNodes(sampleAgent.nodes);
-      setConnections(sampleAgent.connections);
-      setAgentName(sampleAgent.name);
-      
-      // Initialize history with the loaded agent
-      setHistory([{ 
-        nodes: sampleAgent.nodes, 
-        connections: sampleAgent.connections 
-      }]);
-      setHistoryIndex(0);
+      loadAgent();
     }
   }, [id, isNew]);
   
@@ -143,19 +119,44 @@ const Builder = () => {
     saveToHistory(nodes, newConnections);
   };
   
-  const handleSave = () => {
-    // TODO: Save the agent to an API or local storage
-    toast.success("Agent saved successfully");
+  const handleSave = async () => {
+    setLoading(true);
     
-    // If it's a new agent, redirect to the edit page with the new ID
-    if (isNew) {
-      const newId = generateId();
-      navigate(`/builder/${newId}`);
+    try {
+      const agentData: AgentData = {
+        id: isNew ? 'new' : id!,
+        name: agentName,
+        description: agentDescription,
+        nodes,
+        connections,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      const { success, error, id: newId } = await saveAgent(agentData);
+      
+      if (!success || error) {
+        throw new Error(error || "Failed to save agent");
+      }
+      
+      toast.success("Agent saved successfully");
+      
+      // If it's a new agent, redirect to the edit page with the new ID
+      if (isNew && newId) {
+        navigate(`/builder/${newId}`);
+      }
+    } catch (error) {
+      console.error("Error saving agent:", error);
+      toast.error("Failed to save agent");
+    } finally {
+      setLoading(false);
     }
   };
   
   const handleTest = () => {
-    toast.info("Testing agent... This would open a test panel");
+    // First save the agent, then open the test panel
+    handleSave();
+    setTestPanelOpen(true);
   };
   
   const handleClear = () => {
@@ -172,7 +173,7 @@ const Builder = () => {
     const agentData: AgentData = {
       id: id || generateId(),
       name: agentName,
-      description: "Exported agent",
+      description: agentDescription,
       nodes,
       connections,
       createdAt: new Date().toISOString(),
@@ -298,12 +299,36 @@ const Builder = () => {
     }
   };
   
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <div className="text-center">
+            <p className="text-muted-foreground mb-2">Loading agent...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  const currentAgent: AgentData = {
+    id: id || 'new',
+    name: agentName,
+    description: agentDescription,
+    nodes,
+    connections,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
   return (
     <Layout>
       <div className="flex flex-col h-[calc(100vh-64px)]">
         <BuilderToolbar
           name={agentName}
           onNameChange={setAgentName}
+          description={agentDescription}
+          onDescriptionChange={setAgentDescription}
           onSave={handleSave}
           onTest={handleTest}
           onClear={handleClear}
@@ -330,6 +355,12 @@ const Builder = () => {
             />
           </div>
         </div>
+        
+        <TestPanel 
+          open={testPanelOpen} 
+          onOpenChange={setTestPanelOpen} 
+          agent={currentAgent} 
+        />
       </div>
     </Layout>
   );
