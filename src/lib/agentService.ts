@@ -1,7 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { AgentData } from "@/types/builder";
+import { AgentData, NodeData, ConnectionData } from "@/types/builder";
 import { generateId } from "@/lib/utils";
+import { Json } from "@/integrations/supabase/types";
 
 export async function saveAgent(agent: AgentData): Promise<{ success: boolean; error?: string; id?: string }> {
   try {
@@ -10,14 +11,14 @@ export async function saveAgent(agent: AgentData): Promise<{ success: boolean; e
     
     const { error } = await supabase
       .from('agents')
-      .upsert({
+      .upsert([{  // Use an array with a single object for upsert
         id: agentId,
         name: agent.name,
         description: agent.description || '',
-        nodes: agent.nodes,
-        connections: agent.connections,
+        nodes: agent.nodes as unknown as Json,
+        connections: agent.connections as unknown as Json,
         updated_at: new Date().toISOString()
-      }, {
+      }], {
         onConflict: 'id'
       });
     
@@ -48,8 +49,8 @@ export async function getAgent(id: string): Promise<{ agent?: AgentData; error?:
       id: data.id,
       name: data.name,
       description: data.description || "",
-      nodes: data.nodes || [],
-      connections: data.connections || [],
+      nodes: (data.nodes as unknown as NodeData[]) || [],
+      connections: (data.connections as unknown as ConnectionData[]) || [],
       createdAt: data.created_at,
       updatedAt: data.updated_at
     };
@@ -74,8 +75,8 @@ export async function getAgentList(): Promise<{ agents?: AgentData[]; error?: st
       id: item.id,
       name: item.name,
       description: item.description || "",
-      nodes: item.nodes || [],
-      connections: item.connections || [],
+      nodes: (item.nodes as unknown as NodeData[]) || [],
+      connections: (item.connections as unknown as ConnectionData[]) || [],
       createdAt: item.created_at,
       updatedAt: item.updated_at
     }));
