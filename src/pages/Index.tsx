@@ -1,14 +1,141 @@
-// Update this page (the content is just a fallback if you fail to update the page)
 
-const Index = () => {
+import React from "react";
+import Layout from "@/components/Layout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search, Users, TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
+import { sampleAgentTemplates } from "@/data/nodeData";
+
+const Dashboard = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <Layout>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome to Agent Garden</h1>
+          <p className="text-muted-foreground mt-1">
+            Build your own AI agents by combining modular components
+          </p>
+        </div>
+        <Button asChild>
+          <Link to="/builder/new">
+            <Plus className="h-4 w-4 mr-2" />
+            New Agent
+          </Link>
+        </Button>
       </div>
-    </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">My Agents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">2</div>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Link to="/agents" className="text-xs text-blue-500 hover:underline">
+              View all agents
+            </Link>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Community Templates</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">120+</div>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Link to="/templates" className="text-xs text-blue-500 hover:underline">
+              Browse templates
+            </Link>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Available Components</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">50+</div>
+          </CardContent>
+          <CardFooter className="pt-0">
+            <Link to="/components" className="text-xs text-blue-500 hover:underline">
+              Explore components
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+      
+      <Tabs defaultValue="templates" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="templates">Popular Templates</TabsTrigger>
+          <TabsTrigger value="community">Community Picks</TabsTrigger>
+          <TabsTrigger value="recent">Recently Used</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="templates" className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {sampleAgentTemplates.map((template) => (
+              <Card key={template.id} className="overflow-hidden">
+                <div className="aspect-video bg-gradient-to-br from-garden-purple/20 to-garden-teal/20 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-garden-purple to-garden-teal flex items-center justify-center">
+                    {template.category === "Education" && <Search className="h-8 w-8 text-white" />}
+                    {template.category === "Productivity" && <TrendingUp className="h-8 w-8 text-white" />}
+                    {template.category === "Health" && <Users className="h-8 w-8 text-white" />}
+                    {template.category === "Research" && <Search className="h-8 w-8 text-white" />}
+                  </div>
+                </div>
+                <CardHeader className="p-4">
+                  <CardTitle className="text-lg">{template.name}</CardTitle>
+                  <CardDescription>{template.description}</CardDescription>
+                </CardHeader>
+                <CardFooter className="p-4 pt-0 flex justify-between">
+                  <span className="text-xs bg-muted px-2 py-1 rounded-md">
+                    {template.category}
+                  </span>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to={`/builder/template/${template.id}`}>
+                      Use Template
+                    </Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="community">
+          <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/40">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-2">Explore community-created agents</p>
+              <Button asChild>
+                <Link to="/community">
+                  Browse Community
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="recent">
+          <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/40">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-2">Your recently used agents will appear here</p>
+              <Button asChild>
+                <Link to="/agents">
+                  View My Agents
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </Layout>
   );
 };
 
-export default Index;
+export default Dashboard;
